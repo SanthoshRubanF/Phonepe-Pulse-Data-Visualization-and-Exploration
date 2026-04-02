@@ -54,6 +54,7 @@ class DataPaths:
     def __post_init__(self):
         """Initialize data paths"""
         base_data_path = self._get_data_base_path()
+        self.base_data_path = base_data_path
         
         # Aggregated data paths - COUNTRY level (2018-2024)
         self.agg_insurance_country = os.path.join(base_data_path, "aggregated/insurance/country/india/")
@@ -78,14 +79,16 @@ class DataPaths:
     @staticmethod
     def _get_data_base_path() -> str:
         """Get data base path from environment or default locations"""
-        if "DATA_BASE_PATH" in os.environ:
-            return os.getenv("DATA_BASE_PATH")
-        
+        env_path = os.getenv("DATA_BASE_PATH")
+        if env_path:
+            candidate = Path(env_path).expanduser()
+            if not candidate.is_absolute():
+                candidate = BASE_DIR / candidate
+            if candidate.exists():
+                return str(candidate.resolve())
+
         default_path = BASE_DIR / "pulse" / "data"
-        if default_path.exists():
-            return str(default_path)
-        
-        return str(default_path)
+        return str(default_path.resolve())
 
 
 @dataclass
@@ -131,7 +134,7 @@ class Config:
     
     @property
     def DATA_BASE_PATH(self) -> str:
-        return self.paths.agg_insurance.replace("/aggregated/insurance/country/india/state/", "")
+        return self.paths.base_data_path
     
     @property
     def AGG_INSURANCE_PATH(self) -> str:

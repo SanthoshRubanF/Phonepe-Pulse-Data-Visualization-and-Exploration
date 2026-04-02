@@ -117,12 +117,14 @@ pip install -r requirements.txt
 
 The `.env` file is pre-configured with default values:
 ```env
-DATA_BASE_PATH=C:\Users\DELL\OneDrive\Desktop\Phonepe\Phonepe-Pulse-Data-Visualization-and-Exploration\pulse\data
+DATA_BASE_PATH=./pulse/data
 ```
 
 If you're using a different path or operating system, edit `.env`:
 - **Windows**: Use absolute paths with backslashes or forward slashes
 - **macOS/Linux**: `DATA_BASE_PATH=./pulse/data` (relative path from project root)
+
+If `DATA_BASE_PATH` is missing or points to a location that does not exist, the app automatically falls back to the bundled `pulse/data` directory. This is especially helpful for Streamlit Cloud deployments.
 
 **Step 5: Run Dashboard**
 ```bash
