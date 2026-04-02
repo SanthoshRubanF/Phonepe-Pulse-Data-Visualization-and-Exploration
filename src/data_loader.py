@@ -11,6 +11,15 @@ from pathlib import Path
 from config.settings import config
 from src.utils import clean_state_names
 
+try:
+    import psycopg2
+    from psycopg2.extras import execute_values
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+    psycopg2 = None
+    execute_values = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,6 +31,348 @@ class DataLoader:
         self.config = config
         self.geojson_data: Optional[Dict] = None
         self._cache: Dict = {}
+        self.db_connection = None
+    
+    def get_db_connection(self):
+        """
+        Get PostgreSQL database connection.
+        
+        Returns:
+            Database connection object or None if DB not available
+        """
+        if not DB_AVAILABLE:
+            logger.warning("psycopg2 not installed. Database functionality unavailable.")
+            return None
+        
+        if self.db_connection is not None:
+            try:
+                # Test connection
+                cursor = self.db_connection.cursor()
+                cursor.execute("SELECT 1")
+                cursor.close()
+                return self.db_connection
+            except Exception as e:
+                logger.warning(f"Database connection lost, reconnecting: {str(e)}")
+                self.db_connection = None
+        
+        try:
+            conn_params = self.config.db.get_connection_kwargs()
+            self.db_connection = psycopg2.connect(**conn_params)
+            logger.info("Successfully connected to PostgreSQL database")
+            return self.db_connection
+        except Exception as e:
+            logger.error(f"Failed to connect to PostgreSQL: {str(e)}")
+            return None
+    
+    def close_db_connection(self):
+        """Close database connection"""
+        if self.db_connection:
+            try:
+                self.db_connection.close()
+                self.db_connection = None
+                logger.info("Database connection closed")
+            except Exception as e:
+                logger.error(f"Error closing database connection: {str(e)}")
+    
+    def create_tables(self) -> bool:
+        """
+        Create database tables for PhonePe Pulse data.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        conn = self.get_db_connection()
+        if not conn:
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            
+            # Create transaction table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS transactions (
+                    id SERIAL PRIMARY KEY,
+                    state VARCHAR(100),
+                    year INTEGER,
+                    quarter INTEGER,
+                    transaction_type VARCHAR(100),
+                    transaction_count BIGINT,
+                    transaction_amount BIGINT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(state, year, quarter, transaction_type)
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_transactions_state_year ON transactions(state, year);
+                CREATE INDEX IF NOT EXISTS idx_transactions_year_quarter ON transactions(year, quarter);
+            """)
+            
+            # Create insurance table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS insurance (
+                    id SERIAL PRIMARY KEY,
+                    state VARCHAR(100),
+                    year INTEGER,
+                    quarter INTEGER,
+                    insurance_type VARCHAR(100),
+                    insurance_count BIGINT,
+                    insurance_amount BIGINT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(state, year, quarter, insurance_type)
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_insurance_state_year ON insurance(state, year);
+                CREATE INDEX IF NOT EXISTS idx_insurance_year_quarter ON insurance(year, quarter);
+            """)
+            
+            # Create users table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    state VARCHAR(100),
+                    year INTEGER,
+                    quarter INTEGER,
+                    brands VARCHAR(100),
+                    user_count BIGINT,
+                    percentage REAL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(state, year, quarter, brands)
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_users_state_year ON users(state, year);
+                CREATE INDEX IF NOT EXISTS idx_users_year_quarter ON users(year, quarter);
+            """)
+            
+            conn.commit()
+            logger.info("Database tables created/verified successfully")
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error creating tables: {str(e)}")
+            conn.rollback()
+            return False
+        finally:
+            cursor.close()
+    
+    def sync_json_to_database(self) -> bool:
+        """
+        Synchronize data from JSON files to PostgreSQL database.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        conn = None
+        try:
+            # Get connection
+            conn = self.get_db_connection()
+            if not conn:
+                logger.error("Cannot sync to database: No database connection")
+                return False
+            
+            # Load all data from JSON FIRST
+            logger.info("Loading data from JSON files for database sync...")
+            
+            transaction_df = self.load_from_json('aggregated', 'transaction')
+            insurance_df = self.load_from_json('aggregated', 'insurance')
+            user_df = self.load_from_json('aggregated', 'user')
+            
+            # Remove duplicates from dataframes
+            logger.info(f"Deduplicating data...")
+            if not transaction_df.empty:
+                cols_to_check = ['States', 'Years', 'Quarter', 'Transaction_type']
+                transaction_df = transaction_df.drop_duplicates(subset=cols_to_check, keep='first')
+                logger.info(f"  Transactions after dedup: {len(transaction_df)} rows")
+            
+            if not insurance_df.empty:
+                cols_to_check = ['States', 'Years', 'Quarter', 'Insurance_type']
+                insurance_df = insurance_df.drop_duplicates(subset=cols_to_check, keep='first')
+                logger.info(f"  Insurance after dedup: {len(insurance_df)} rows")
+            
+            if not user_df.empty:
+                cols_to_check = ['States', 'Years', 'Quarter', 'Brands']
+                user_df = user_df.drop_duplicates(subset=cols_to_check, keep='first')
+                logger.info(f"  Users after dedup: {len(user_df)} rows")
+            
+            cursor = conn.cursor()
+            
+            # Drop and recreate tables for clean state
+            try:
+                cursor.execute("DROP TABLE IF EXISTS transactions CASCADE;")
+                cursor.execute("DROP TABLE IF EXISTS insurance CASCADE;")
+                cursor.execute("DROP TABLE IF EXISTS users CASCADE;")
+                conn.commit()
+                logger.info("Dropped existing tables")
+            except Exception as e:
+                logger.warning(f"DROP warning: {str(e)}")
+                conn.rollback()
+            
+            # Recreate tables
+            self.create_tables()
+            
+            # Get fresh cursor after table recreation
+            cursor = conn.cursor()
+            
+            # Insert transaction data
+            if not transaction_df.empty:
+                self._insert_data_to_db(cursor, transaction_df, 'transactions', 'transaction')
+            
+            # Insert insurance data 
+            if not insurance_df.empty:
+                self._insert_data_to_db(cursor, insurance_df, 'insurance', 'insurance')
+            
+            # Insert user data
+            if not user_df.empty:
+                self._insert_data_to_db(cursor, user_df, 'users', 'user')
+            
+            conn.commit()
+            logger.info("Successfully synchronized JSON data to PostgreSQL database")
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error syncing data to database: {str(e)}")
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            return False
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                    self.db_connection = None  # Reset connection pool
+                except:
+                    pass
+    
+    def _insert_data_to_db(self, cursor, df: pd.DataFrame, table_name: str, data_type: str):
+        """
+        Insert data into database table.
+        
+        Args:
+            cursor: Database cursor
+            df: DataFrame with data to insert
+            table_name: Target table name
+            data_type: Type of data ('transaction', 'insurance', 'user')
+        """
+        try:
+            if data_type == 'transaction':
+                columns = ['state', 'year', 'quarter', 'transaction_type', 'transaction_count', 'transaction_amount']
+                column_names = 'state, year, quarter, transaction_type, transaction_count, transaction_amount'
+                # Rename columns to match database schema
+                df = df.rename(columns={
+                    'States': 'state',
+                    'Years': 'year',
+                    'Quarter': 'quarter',
+                    'Transaction_type': 'transaction_type',
+                    'Transaction_count': 'transaction_count',
+                    'Transaction_amount': 'transaction_amount'
+                })
+            
+            elif data_type == 'insurance':
+                columns = ['state', 'year', 'quarter', 'insurance_type', 'insurance_count', 'insurance_amount']
+                column_names = 'state, year, quarter, insurance_type, insurance_count, insurance_amount'
+                df = df.rename(columns={
+                    'States': 'state',
+                    'Years': 'year',
+                    'Quarter': 'quarter',
+                    'Insurance_type': 'insurance_type',
+                    'Insurance_count': 'insurance_count',
+                    'Insurance_amount': 'insurance_amount'
+                })
+            
+            elif data_type == 'user':
+                columns = ['state', 'year', 'quarter', 'brands', 'user_count', 'percentage']
+                column_names = 'state, year, quarter, brands, user_count, percentage'
+                df = df.rename(columns={
+                    'States': 'state',
+                    'Years': 'year',
+                    'Quarter': 'quarter',
+                    'Brands': 'brands',
+                    'User_count': 'user_count',
+                    'Percentage': 'percentage'
+                })
+            
+            # Delete existing data for this batch to avoid duplicates
+            df_distinct = df[['state', 'year', 'quarter']].drop_duplicates()
+            for _, row in df_distinct.iterrows():
+                cursor.execute(
+                    f"DELETE FROM {table_name} WHERE state = %s AND year = %s AND quarter = %s",
+                    (row['state'], row['year'], row['quarter'])
+                )
+            
+            # Insert new data
+            tuples = [tuple(row[col] for col in columns) for _, row in df[columns].iterrows()]
+            
+            # Build INSERT query for execute_values (which uses %s, not (%s, %s, ...))
+            insert_query = f"INSERT INTO {table_name} ({column_names}) VALUES %s"
+            
+            execute_values(cursor, insert_query, tuples, page_size=1000)
+            logger.info(f"Inserted {len(tuples)} rows into {table_name}")
+        
+        except Exception as e:
+            logger.error(f"Error inserting data into {table_name}: {str(e)}")
+            raise
+    
+    def load_from_database(self, category: str) -> pd.DataFrame:
+        """
+        Load data from PostgreSQL database.
+        
+        Args:
+            category: Data category ('transaction', 'insurance', 'user')
+            
+        Returns:
+            DataFrame with data from database
+        """
+        cache_key = f"db_{category}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        conn = self.get_db_connection()
+        if not conn:
+            logger.warning("Database not available, falling back to JSON")
+            return self.load_from_json('aggregated', category)
+        
+        try:
+            if category == 'transaction':
+                query = """
+                    SELECT state AS "States", year AS "Years", quarter AS "Quarter",
+                           transaction_type AS "Transaction_type",
+                           transaction_count AS "Transaction_count",
+                           transaction_amount AS "Transaction_amount"
+                    FROM transactions
+                    ORDER BY year, quarter, state
+                """
+            elif category == 'insurance':
+                query = """
+                    SELECT state AS "States", year AS "Years", quarter AS "Quarter",
+                           insurance_type AS "Insurance_type",
+                           insurance_count AS "Insurance_count",
+                           insurance_amount AS "Insurance_amount"
+                    FROM insurance
+                    ORDER BY year, quarter, state
+                """
+            elif category == 'user':
+                query = """
+                    SELECT state AS "States", year AS "Years", quarter AS "Quarter",
+                           brands AS "Brands",
+                           user_count AS "User_count",
+                           percentage AS "Percentage"
+                    FROM users
+                    ORDER BY year, quarter, state
+                """
+            else:
+                logger.error(f"Unknown category: {category}")
+                return pd.DataFrame()
+            
+            df = pd.read_sql_query(query, conn)
+            self._cache[cache_key] = df
+            logger.info(f"Loaded {len(df)} rows for {category} data from database")
+            return df
+        
+        except Exception as e:
+            logger.error(f"Error loading {category} data from database: {str(e)}")
+            logger.info("Falling back to JSON data loading")
+            return self.load_from_json('aggregated', category)
+    
     
     def load_from_json(self, data_type: str, category: str) -> pd.DataFrame:
         """

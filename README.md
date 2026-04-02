@@ -65,6 +65,7 @@ Phonepe-Pulse-Data-Visualization-and-Exploration/
 - Python 3.8 or higher
 - 1GB RAM minimum
 - Internet connection (for initial data download and GeoJSON files)
+- PostgreSQL 12+ (optional, for database backend)
 
 ### Technology Stack
 - **Frontend Framework**: Streamlit 1.28.1
@@ -129,6 +130,38 @@ streamlit run app/main.py
 ```
 
 Access the dashboard at: **http://localhost:8501**
+
+### PostgreSQL Database Setup (Optional)
+
+For production deployments, you can use PostgreSQL database instead of JSON files:
+
+**Step 1: Configure Database**
+```env
+DB_HOST=localhost
+DB_USER=postgres
+DB_PASSWORD=your_password
+DB_NAME=phonepe
+DB_PORT=5432
+```
+
+**Step 2: Setup Database**
+```bash
+python src/database.py --full-setup
+```
+
+This will:
+- ✅ Test database connection
+- ✅ Create necessary tables
+- ✅ Sync data from JSON to PostgreSQL
+
+**Step 3: Run Dashboard**
+```bash
+streamlit run app/main.py
+```
+
+The dashboard will automatically use PostgreSQL if available, with automatic fallback to JSON files.
+
+See [DATABASE_SETUP.md](DATABASE_SETUP.md) for comprehensive database documentation.
 
 ### Initial Data Setup
 
@@ -320,12 +353,61 @@ Utility functions for data processing and validation.
 | `get_summary_stats()` | Calculate statistics (sum, mean, count) |
 | `fetch_geojson()` | Fetch and cache GeoJSON for maps |
 
-**Example:**
-```python
-from src.utils import format_currency, get_summary_stats
+---
 
-amount = format_currency(1000000)  # ₹10.00L
-stats = get_summary_stats(df, 'Amount')  # Returns dict with sum, mean, count
+### `src/database.py`
+PostgreSQL database management and utilities.
+
+**Features:**
+- Connection management and pooling
+- Automatic table creation with proper indexing
+- Data synchronization from JSON to database
+- Batch insert operations for performance
+- Database statistics and diagnostics
+- Automatic fallback to JSON if database unavailable
+
+**Main Class:**
+```python
+class DatabaseManager:
+    def test_connection() -> bool
+    def setup_database() -> bool
+    def sync_data() -> bool
+    def get_database_stats() -> dict
+    def clear_database(confirm: bool) -> bool
+```
+
+**Command-Line Usage:**
+```bash
+# Test database connection
+python src/database.py --test
+
+# Create database tables
+python src/database.py --setup
+
+# Sync JSON data to database
+python src/database.py --sync
+
+# Show database statistics
+python src/database.py --stats
+
+# Complete setup (test + setup + sync)
+python src/database.py --full-setup
+
+# Clear all database data
+python src/database.py --clear
+```
+
+**Database Integration in DataLoader:**
+The `DataLoader` class automatically supports both JSON and database sources:
+```python
+from src.data_loader import DataLoader
+
+loader = DataLoader()
+
+# Loads from database, falls back to JSON if unavailable
+transactions = loader.load_from_database('transaction')
+insurance = loader.load_from_database('insurance')
+users = loader.load_from_database('user')
 ```
 
 ## 📊 Analysis Options

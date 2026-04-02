@@ -22,11 +22,19 @@ def load_env_vars():
 @dataclass
 class DatabaseConfig:
     """Database configuration"""
-    host: str = os.getenv("DB_HOST", "localhost")
-    user: str = os.getenv("DB_USER", "postgres")
-    password: str = os.getenv("DB_PASSWORD", "password")
-    database: str = os.getenv("DB_NAME", "phonepe")
-    port: str = os.getenv("DB_PORT", "5432")
+    host: str = None
+    user: str = None
+    password: str = None
+    database: str = None
+    port: str = None
+    
+    def __post_init__(self):
+        """Load environment variables after initialization"""
+        self.host = os.getenv("DB_HOST", "127.0.0.1")  # Changed default from localhost to 127.0.0.1
+        self.user = os.getenv("DB_USER", "postgres")
+        self.password = os.getenv("DB_PASSWORD", "password")
+        self.database = os.getenv("DB_NAME", "phonepe")
+        self.port = os.getenv("DB_PORT", "5432")
     
     def get_connection_kwargs(self) -> Dict:
         """Return connection parameters as dictionary"""
