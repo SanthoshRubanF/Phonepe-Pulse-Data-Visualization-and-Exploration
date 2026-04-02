@@ -8,8 +8,11 @@ import pandas as pd
 import json
 import requests
 from functools import lru_cache
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+GEOJSON_CACHE_PATH = Path(__file__).resolve().parent.parent / ".cache" / "india_states.geojson"
 
 
 def setup_logging(log_level: str = "INFO") -> None:
@@ -61,14 +64,36 @@ def fetch_geojson(url: str) -> Optional[Dict[str, Any]]:
     Returns:
         Parsed GeoJSON data or None if fetch fails
     """
+    if GEOJSON_CACHE_PATH.exists():
+        try:
+            with GEOJSON_CACHE_PATH.open("r", encoding="utf-8") as cache_file:
+                data = json.load(cache_file)
+            logger.info("GeoJSON data loaded from local cache")
+            return data
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(f"Error reading cached GeoJSON: {str(e)}")
+
     try:
-        response = requests.get(url, timeout=10)
+        session = requests.Session()
+        session.trust_env = False
+        response = session.get(url, timeout=10)
         response.raise_for_status()
         data = json.loads(response.content)
+        GEOJSON_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with GEOJSON_CACHE_PATH.open("w", encoding="utf-8") as cache_file:
+            json.dump(data, cache_file)
         logger.info("GeoJSON data fetched successfully")
         return data
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching GeoJSON: {str(e)}")
+        if GEOJSON_CACHE_PATH.exists():
+            try:
+                with GEOJSON_CACHE_PATH.open("r", encoding="utf-8") as cache_file:
+                    data = json.load(cache_file)
+                logger.info("GeoJSON data loaded from local cache after fetch failure")
+                return data
+            except (OSError, json.JSONDecodeError) as cache_error:
+                logger.error(f"Error reading cached GeoJSON after fetch failure: {str(cache_error)}")
         return None
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing GeoJSON: {str(e)}")

@@ -118,14 +118,14 @@ def analyze_by_year(df: pd.DataFrame, year: int) -> Optional[pd.DataFrame]:
             state_summary.head(15), 'States', 'User_count',
             f"{year} - Top 15 States by Users"
         )
-        st.plotly_chart(fig_states, use_container_width=True)
+        st.plotly_chart(fig_states, use_container_width=True, key="user_year_state_bar")
     
     with col2:
         fig_brands = viz.create_pie_chart(
             brand_summary.head(10), 'Brands', 'User_count',
             f"{year} - Top Brands Distribution"
         )
-        st.plotly_chart(fig_brands, use_container_width=True)
+        st.plotly_chart(fig_brands, use_container_width=True, key="user_year_brand_pie")
     
     # Geographic visualization
     st.subheader("User Distribution by State")
@@ -135,7 +135,7 @@ def analyze_by_year(df: pd.DataFrame, year: int) -> Optional[pd.DataFrame]:
         f"{year} - User Distribution Map",
         color_scale="Greens"
     )
-    st.plotly_chart(fig_map, use_container_width=True)
+    st.plotly_chart(fig_map, use_container_width=True, key="user_year_state_map")
     
     return year_data
 
@@ -169,14 +169,14 @@ def analyze_by_state(df: pd.DataFrame, state: str) -> Optional[pd.DataFrame]:
             yearly_data, 'Years', 'User_count',
             f"{state} - Yearly User Growth"
         )
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_line, use_container_width=True, key="user_state_growth_line")
     
     with col2:
         fig_brands = viz.create_bar_chart(
             brand_data.head(10), 'Brands', 'User_count',
             f"{state} - Top 10 Brands"
         )
-        st.plotly_chart(fig_brands, use_container_width=True)
+        st.plotly_chart(fig_brands, use_container_width=True, key="user_state_brand_bar")
     
     return state_data
 
@@ -204,7 +204,7 @@ def analyze_brands(df: pd.DataFrame) -> None:
             top_brands, 'Brands', 'User_count',
             "Top 15 Device Brands"
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, use_container_width=True, key="user_brand_bar")
     
     with col2:
         st.dataframe(

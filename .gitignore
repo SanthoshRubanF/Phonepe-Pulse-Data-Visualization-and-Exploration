@@ -33,6 +33,7 @@ venv/
 ENV/
 env/
 .venv
+.venv*/
 
 # IDE
 .vscode/
@@ -65,6 +66,10 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+.cache/
+.tmp/
+.pycache-temp/
+.uv-cache/
 
 # OS
 .DS_Store

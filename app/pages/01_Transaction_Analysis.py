@@ -113,14 +113,14 @@ def analyze_by_year(df: pd.DataFrame, year: int) -> Optional[pd.DataFrame]:
             state_summary, 'States', 'Transaction_count',
             f"{year} - Transaction Count by State"
         )
-        st.plotly_chart(fig_count, use_container_width=True)
+        st.plotly_chart(fig_count, use_container_width=True, key="tx_year_count_chart")
     
     with col2:
         fig_amount = viz.create_bar_chart(
             state_summary, 'States', 'Transaction_amount',
             f"{year} - Transaction Amount by State"
         )
-        st.plotly_chart(fig_amount, use_container_width=True)
+        st.plotly_chart(fig_amount, use_container_width=True, key="tx_year_amount_chart")
     
     # Choropleth map
     st.subheader("Geographic Distribution")
@@ -133,7 +133,7 @@ def analyze_by_year(df: pd.DataFrame, year: int) -> Optional[pd.DataFrame]:
             f"{year} - Transaction Count Map",
             color_scale="Blues"
         )
-        st.plotly_chart(fig_map_count, use_container_width=True)
+        st.plotly_chart(fig_map_count, use_container_width=True, key="tx_year_count_map")
     
     with col2:
         fig_map_amount = viz.create_choropleth_map(
@@ -141,7 +141,7 @@ def analyze_by_year(df: pd.DataFrame, year: int) -> Optional[pd.DataFrame]:
             f"{year} - Transaction Amount Map",
             color_scale="Purples"
         )
-        st.plotly_chart(fig_map_amount, use_container_width=True)
+        st.plotly_chart(fig_map_amount, use_container_width=True, key="tx_year_amount_map")
     
     return year_data
 
@@ -191,14 +191,14 @@ def analyze_by_quarter(df: pd.DataFrame, year: int, quarter: int) -> Optional[pd
             top_states, 'States', 'Transaction_amount',
             f"Q{quarter} {year} - Amount Distribution"
         )
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, use_container_width=True, key="tx_quarter_amount_pie")
     
     with col2:
         fig_bar = viz.create_bar_chart(
             top_states, 'States', 'Transaction_count',
             f"Q{quarter} {year} - Transaction Count"
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, use_container_width=True, key="tx_quarter_count_bar")
     
     return quarter_data
 
@@ -228,14 +228,14 @@ def analyze_by_state(df: pd.DataFrame, state: str) -> Optional[pd.DataFrame]:
             yearly_data, 'Years', 'Transaction_count',
             f"{state} - Yearly Transaction Count"
         )
-        st.plotly_chart(fig_line_count, use_container_width=True)
+        st.plotly_chart(fig_line_count, use_container_width=True, key="tx_state_count_line")
     
     with col2:
         fig_line_amount = viz.create_line_chart(
             yearly_data, 'Years', 'Transaction_amount',
             f"{state} - Yearly Transaction Amount"
         )
-        st.plotly_chart(fig_line_amount, use_container_width=True)
+        st.plotly_chart(fig_line_amount, use_container_width=True, key="tx_state_amount_line")
     
     return state_data
 
@@ -309,14 +309,14 @@ def main():
                 yearly_summary, 'Years', 'Transaction_amount',
                 f"{selected_type} - Yearly Amount Trend"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="tx_type_amount_line")
         
         with col2:
             fig = viz.create_line_chart(
                 yearly_summary, 'Years', 'Transaction_count',
                 f"{selected_type} - Yearly Count Trend"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="tx_type_count_line")
 
 
 if __name__ == "__main__":

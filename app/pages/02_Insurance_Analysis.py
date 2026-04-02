@@ -113,14 +113,14 @@ def analyze_by_year(df: pd.DataFrame, year: int) -> Optional[pd.DataFrame]:
             state_summary, 'States', 'Insurance_count',
             f"{year} - Insurance Count by State"
         )
-        st.plotly_chart(fig_count, use_container_width=True)
+        st.plotly_chart(fig_count, use_container_width=True, key="ins_year_count_chart")
     
     with col2:
         fig_amount = viz.create_bar_chart(
             state_summary, 'States', 'Insurance_amount',
             f"{year} - Insurance Amount by State"
         )
-        st.plotly_chart(fig_amount, use_container_width=True)
+        st.plotly_chart(fig_amount, use_container_width=True, key="ins_year_amount_chart")
     
     # Geographic visualization
     st.subheader("Geographic Distribution")
@@ -133,7 +133,7 @@ def analyze_by_year(df: pd.DataFrame, year: int) -> Optional[pd.DataFrame]:
             f"{year} - Insurance Count Map",
             color_scale="Oranges"
         )
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, use_container_width=True, key="ins_year_count_map")
     
     with col2:
         fig_map = viz.create_choropleth_map(
@@ -141,7 +141,7 @@ def analyze_by_year(df: pd.DataFrame, year: int) -> Optional[pd.DataFrame]:
             f"{year} - Insurance Amount Map",
             color_scale="YlOrRd"
         )
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, use_container_width=True, key="ins_year_amount_map")
     
     return year_data
 
@@ -177,14 +177,14 @@ def analyze_by_state(df: pd.DataFrame, state: str) -> Optional[pd.DataFrame]:
             yearly_data, 'Years', 'Insurance_amount',
             f"{state} - Yearly Premium Trend"
         )
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_line, use_container_width=True, key="ins_state_premium_line")
     
     with col2:
         fig_pie = viz.create_pie_chart(
             insurance_types, 'Insurance_type', 'Insurance_amount',
             f"{state} - Insurance Type Distribution"
         )
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, use_container_width=True, key="ins_state_type_pie")
     
     return state_data
 
@@ -254,14 +254,14 @@ def main():
                 yearly_summary, 'Years', 'Insurance_amount',
                 f"{selected_type} - Yearly Trend"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="ins_type_yearly_line")
         
         with col2:
             fig = viz.create_bar_chart(
                 state_summary, 'States', 'Insurance_amount',
                 f"{selected_type} - Top 10 States"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="ins_type_state_bar")
 
 
 if __name__ == "__main__":

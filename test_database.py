@@ -51,13 +51,13 @@ class DatabaseTester:
             try:
                 success, message = test_func()
                 self.results.append((test_name, success, message))
-                status = "✓ PASS" if success else "✗ FAIL"
+                status = "PASS" if success else "FAIL"
                 logger.info(f"{status}: {test_name}")
                 if message:
                     logger.info(f"        {message}")
             except Exception as e:
                 self.results.append((test_name, False, str(e)))
-                logger.error(f"✗ FAIL: {test_name}")
+                logger.error(f"FAIL: {test_name}")
                 logger.error(f"        {str(e)}")
         
         self.print_summary()
@@ -215,14 +215,14 @@ class DatabaseTester:
             print("Failed Tests:")
             for name, success, message in self.results:
                 if not success:
-                    print(f"  ✗ {name}")
+                    print(f"  FAIL {name}")
                     print(f"    {message}")
         
         print("\n" + "=" * 70)
         if passed == total:
-            print("✓ All tests passed! PostgreSQL is ready to use.")
+            print("All tests passed! PostgreSQL is ready to use.")
         else:
-            print(f"✗ {failed} test(s) failed. Check configuration and try again.")
+            print(f"{failed} test(s) failed. Check configuration and try again.")
         print("=" * 70 + "\n")
 
 
