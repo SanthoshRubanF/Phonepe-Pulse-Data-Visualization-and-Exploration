@@ -5,7 +5,7 @@ This guide explains how to set up and use PostgreSQL database with the PhonePe P
 ## Prerequisites
 
 - PostgreSQL 12+ installed and running
-- psycopg2-binary (included in `requirements.txt`)
+- psycopg2-binary 2.9.11+ (included in `requirements.txt`)
 - Python 3.8+
 
 ## Quick Start
@@ -16,6 +16,7 @@ pip install -r requirements.txt
 ```
 
 This installs `psycopg2-binary` which enables PostgreSQL connectivity.
+Version `2.9.11` or newer is recommended for Python 3.14-based deployments such as current Streamlit Community Cloud builds.
 
 ### 2. Configure Database Connection
 
