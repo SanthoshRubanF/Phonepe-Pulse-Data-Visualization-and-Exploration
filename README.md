@@ -68,7 +68,7 @@ Phonepe-Pulse-Data-Visualization-and-Exploration/
 - PostgreSQL 12+ (optional, for database backend)
 
 ### Technology Stack
-- **Frontend Framework**: Streamlit 1.28.1
+- **Frontend Framework**: Streamlit 1.52.2
 - **Visualization**: Plotly 5.17.0
 - **Data Processing**: Pandas, NumPy
 - **HTTP Requests**: Requests 2.31.0
@@ -76,7 +76,7 @@ Phonepe-Pulse-Data-Visualization-and-Exploration/
 
 ### Python Packages
 ```
-streamlit==1.28.1
+streamlit==1.52.2
 plotly==5.17.0
 pandas
 numpy
