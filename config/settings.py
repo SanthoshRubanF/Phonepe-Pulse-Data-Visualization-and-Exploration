@@ -87,8 +87,15 @@ class DataPaths:
             if candidate.exists():
                 return str(candidate.resolve())
 
-        default_path = BASE_DIR / "pulse" / "data"
-        return str(default_path.resolve())
+        fallback_paths = [
+            BASE_DIR / "bundled_pulse_data",
+            BASE_DIR / "pulse" / "data",
+        ]
+        for default_path in fallback_paths:
+            if default_path.exists():
+                return str(default_path.resolve())
+
+        return str(fallback_paths[0].resolve())
 
 
 @dataclass

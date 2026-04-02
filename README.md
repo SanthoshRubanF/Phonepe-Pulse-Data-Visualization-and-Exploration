@@ -45,6 +45,11 @@ Phonepe-Pulse-Data-Visualization-and-Exploration/
 │   ├── __init__.py
 │   └── settings.py                   # Centralized settings with environment variables
 │
+├── bundled_pulse_data/               # Bundled PhonePe Pulse JSON data for deployment
+│   ├── aggregated/
+│   ├── map/
+│   └── top/
+│
 ├── src/                              # Core business logic
 │   ├── __init__.py
 │   ├── data_loader.py               # JSON data loading (country + state level)
@@ -124,7 +129,7 @@ If you're using a different path or operating system, edit `.env`:
 - **Windows**: Use absolute paths with backslashes or forward slashes
 - **macOS/Linux**: `DATA_BASE_PATH=./pulse/data` (relative path from project root)
 
-If `DATA_BASE_PATH` is missing or points to a location that does not exist, the app automatically falls back to the bundled `pulse/data` directory. This is especially helpful for Streamlit Cloud deployments.
+If `DATA_BASE_PATH` is missing or points to a location that does not exist, the app automatically falls back to the bundled dataset in `bundled_pulse_data/`. If that folder is unavailable, it then checks `pulse/data`.
 
 **Step 5: Run Dashboard**
 ```bash

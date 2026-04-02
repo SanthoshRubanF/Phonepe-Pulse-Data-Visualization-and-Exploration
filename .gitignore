@@ -78,3 +78,7 @@ Thumbs.db
 # Testing
 .pytest_cache/
 .tox/
+
+# Bundled app data for deployment
+!bundled_pulse_data/
+!bundled_pulse_data/**
